@@ -4,7 +4,7 @@ open System.IO
 open Chauffeur
 open Chauffeur.Host
 open System.IO.Abstractions
-open uSyncModule
+open copyModule
 
 [<DeliverableName("usync")>]
 type uSyncDeliverable(reader, writer, fileSystem : IFileSystem, uSyncSettings : ISettings, chauffeurSettings : IChauffeurSettings) =

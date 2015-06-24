@@ -1,4 +1,4 @@
-﻿module uSyncModule
+﻿module copyModule
 
 open System.IO
 open System.IO.Abstractions
