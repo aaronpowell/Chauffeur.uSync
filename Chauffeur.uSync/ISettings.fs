@@ -3,8 +3,8 @@
 open jumps.umbraco.usync
 
 type ISettings =
-    abstract member Folder: string
+    abstract Folder : string
 
 type uSyncSettingsWrapper() =
     interface ISettings with
-        member this.Folder = uSyncSettings.Folder
+        member this.Folder = uSyncSettings.Folder.Replace("~/", "")
