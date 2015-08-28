@@ -10,6 +10,7 @@ open deliverableMakerModule
 [<DeliverableName("usync")>]
 type uSyncDeliverable(reader, writer, fileSystem : IFileSystem, uSyncSettings : ISettings, chauffeurSettings : IChauffeurSettings) =
     inherit Deliverable(reader, writer)
+
     override this.Run(command, args) =
         let noArgs (out : TextWriter) =
             async {
@@ -44,14 +45,20 @@ type uSyncDeliverable(reader, writer, fileSystem : IFileSystem, uSyncSettings : 
         | "snapshot" :: _ when couldParse ->
             let chauffeurFolder' = fileSystem.DirectoryInfo.FromDirectoryName(chauffeurFolder).FullName
             let dir = usyncSnapshot' this.Out this.In chauffeurFolder' |> Async.RunSynchronously
-
             match prompt this.In this.Out |> Async.RunSynchronously with
             | "Y" ->
                 let deliveryPath = createDeliverable fileSystem dir chauffeurFolder'
                 this.Out.WriteLine(sprintf "Delivery has been created at %s" deliveryPath)
                 ()
             | _ -> ()
-
             async { return DeliverableResponse.Continue }
         | sc :: _ -> invalidSubCommand this.Out sc
         |> Async.StartAsTask
+
+    interface IProvideDirections with
+        member x.Directions() =
+            x.Out.WriteLineAsync "usync <command>" |> ignore
+            x.Out.WriteLineAsync "\tRuns commands against the uSync export" |> ignore
+            x.Out.WriteLineAsync "usync snapshot" |> ignore
+            x.Out.WriteLineAsync "\tTakes the latest uSync export and moves it to the Chauffeur folder" |> ignore
+            x.Out.WriteLineAsync "\tPrompts user to create a delivery as well"
