@@ -9,6 +9,9 @@ type FileMetadata =
     { Path : string
       DestinationPath : string }
 
+type DirectoryMetadata =
+    { FullName : string }
+
 let findExports (fileSystem : IFileSystem) folder =
     fileSystem.Directory.GetFiles(folder, "*.config", SearchOption.AllDirectories)
     |> Seq.cast<string>
@@ -34,24 +37,18 @@ let copyExportedFiles copy createFolder files =
            file)
     |> Seq.iter (fun file -> copy (file.Path, file.DestinationPath))
 
-let usyncSnapshot tryGetSiteRootDirectory (fileSystem : IFileSystem) outputFolder uSyncFolder (out : TextWriter)
+let usyncSnapshot uSyncRoot (fileSystem : IFileSystem) outputFolder (out : TextWriter)
     (in' : TextReader) chauffeurFolder =
     async {
-        let couldParse, siteRoot = tryGetSiteRootDirectory()
-        let siteRoot' = fileSystem.DirectoryInfo.FromDirectoryName(siteRoot).FullName
-        let uSyncRoot' = fileSystem.Path.Combine(siteRoot', uSyncFolder) |> fileSystem.DirectoryInfo.FromDirectoryName
-
         let createFolder path =
             let f = fileSystem.FileInfo.FromFileName path
             fileSystem.Directory.CreateDirectory f.Directory.FullName |> ignore
 
         let deliverableFolder = outputFolder fileSystem.Path.Combine chauffeurFolder
-        uSyncRoot'.FullName
+        uSyncRoot.FullName
         |> findExports fileSystem
-        |> mapFiles fileSystem.Path.Combine uSyncRoot'.FullName deliverableFolder
+        |> mapFiles fileSystem.Path.Combine uSyncRoot.FullName deliverableFolder
         |> copyExportedFiles fileSystem.File.Copy createFolder
         do! out.WriteLineAsync(sprintf "uSync files copied to %s" deliverableFolder) |> Async.AwaitVoidTask
-        do! out.WriteAsync("Do you wish to create a Delivery (Y/n)?") |> Async.AwaitVoidTask
-        let answer = in'.ReadLine()
-        return DeliverableResponse.Continue
+        return { FullName = deliverableFolder }
     }
