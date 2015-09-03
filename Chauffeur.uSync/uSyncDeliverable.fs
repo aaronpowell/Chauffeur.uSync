@@ -4,8 +4,8 @@ open System.IO
 open Chauffeur
 open Chauffeur.Host
 open System.IO.Abstractions
-open snapshotModule
-open deliverableMakerModule
+open SnapshotModule
+open DeliverableMakerModule
 
 [<DeliverableName("usync")>]
 type uSyncDeliverable(reader, writer, fileSystem : IFileSystem, uSyncSettings : ISettings, chauffeurSettings : IChauffeurSettings) =
@@ -14,20 +14,19 @@ type uSyncDeliverable(reader, writer, fileSystem : IFileSystem, uSyncSettings : 
     override this.Run(command, args) =
         let noArgs (out : TextWriter) =
             async {
-                do! out.WriteLineAsync("No subcommand for usync provided") |> Async.AwaitVoidTask
+                do! out.WriteLineAsync("No subcommand for usync provided") |> Async.AwaitTask
                 return DeliverableResponse.Continue
             }
 
         let chauffeurDirError (out : TextWriter) =
             async {
-                do! out.WriteLineAsync("Failed to load Chauffeur folder") |> Async.AwaitVoidTask
+                do! out.WriteLineAsync("Failed to load Chauffeur folder") |> Async.AwaitTask
                 return DeliverableResponse.Continue
             }
 
         let invalidSubCommand (out : TextWriter) subCommand =
             async {
-                do! out.WriteLineAsync(sprintf "The subcommand '%s' is not supported by usync" subCommand)
-                    |> Async.AwaitVoidTask
+                do! out.WriteLineAsync(sprintf "The subcommand '%s' is not supported by usync" subCommand) |> Async.AwaitTask
                 return DeliverableResponse.Continue
             }
 
@@ -41,17 +40,19 @@ type uSyncDeliverable(reader, writer, fileSystem : IFileSystem, uSyncSettings : 
         let l = args |> Array.toList
         match l with
         | [] -> noArgs this.Out
-        | _ :: _ when not couldParse -> chauffeurDirError this.Out
+        | _ when not couldParse -> chauffeurDirError this.Out
         | "snapshot" :: _ when couldParse ->
-            let chauffeurFolder' = fileSystem.DirectoryInfo.FromDirectoryName(chauffeurFolder).FullName
-            let dir = usyncSnapshot' this.Out this.In chauffeurFolder' |> Async.RunSynchronously
-            match prompt this.In this.Out |> Async.RunSynchronously with
-            | "Y" ->
-                let deliveryPath = createDeliverable fileSystem dir chauffeurFolder'
-                this.Out.WriteLine(sprintf "Delivery has been created at %s" deliveryPath)
-                ()
-            | _ -> ()
-            async { return DeliverableResponse.Continue }
+            let outputStream = this.Out
+            let inputStream = this.In
+            async {
+                let chauffeurFolder' = fileSystem.DirectoryInfo.FromDirectoryName(chauffeurFolder).FullName
+                let! dir = usyncSnapshot' outputStream inputStream chauffeurFolder'
+                let! result = prompt inputStream outputStream
+                if result = "Y" then
+                    let deliveryPath = createDeliverable fileSystem dir chauffeurFolder'
+                    outputStream.WriteLine(sprintf "Delivery has been created at %s" deliveryPath)
+                return DeliverableResponse.Continue
+            }
         | sc :: _ -> invalidSubCommand this.Out sc
         |> Async.StartAsTask
 

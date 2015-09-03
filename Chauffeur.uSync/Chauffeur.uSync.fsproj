@@ -54,7 +54,6 @@
     <Content Include="packages.config" />
     <Content Include="app.config" />
     <Compile Include="ISettings.fs" />
-    <Compile Include="Async.fs" />
     <Compile Include="snapshotModule.fs" />
     <Compile Include="deliverableMakerModule.fs" />
     <Compile Include="uSyncDeliverable.fs" />
